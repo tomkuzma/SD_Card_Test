@@ -9,7 +9,6 @@ Date: April 28, 2022
  */
 
 #include "SDCard.h"
-#include "ezButton.h"
 #include "DailyStruggleButton.h"
 
 #define UP_BUTTON       16
