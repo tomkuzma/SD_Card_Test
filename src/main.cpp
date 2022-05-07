@@ -7,33 +7,98 @@ Setlist Pedal Pilot
 Author: Tom Kuzma
 Date: April 28, 2022
  */
-
+// #include <Arduino.h>
+#include "WiFi.h"
+#include "time.h"
+#include "RTClib.h"
+// #include <Wire.h>
 #include "SDCard.h"
-#include "ezButton.h"
 #include "DailyStruggleButton.h"
 
-#define UP_BUTTON       16
-#define DOWN_BUTTON     17
+#define LEFT_BUTTON_PIN     16
+#define RIGHT_BUTTON_PIN    17
+#define PRESS_TIME          1000
+#define DEBOUNCE_TIME       20  
+#define RTC_PERIOD          15000
 
-#define PRESS_TIME      1000
-#define DEBOUNCE_TIME   20  
+// prototypes
+void buttonEvent_left (byte btnStatus);
+void buttonEvent_right (byte btnStatus);
+void initWiFi();
+void syncTime();
 
-void buttonEvent_down (byte btnStatus);
-void buttonEvent_up (byte btnStatus);
 
+// FSM states
+enum STATE {UPDATE_NTP, SERVER_CONNECT, SELECT_FILE, SCROLL_FILE};
+
+unsigned long lastTime = 0;
+
+// Globals for indexing file text lines
 int lineCount;
 int startingLine = 0;
 
-DailyStruggleButton scrollUp;
-DailyStruggleButton scrollDown;
+// Button Globals 
+DailyStruggleButton lefftButton;
+DailyStruggleButton rightButton;
 
+// rtc Global
+RTC_DS3231 rtc;
+DateTime prev, now;
+
+//WiFi Details
+const char* ssid       = "TELUS6010";
+const char* password   = "roti2roti";
+
+// NTP server to request time
+const char* ntpServer = "pool.ntp.org";
+
+// for sending time to screen ** MAY NOT NEED TO BE GLOBAL
+// String timeString = "";
+
+////////////////SETUP////////////////////////////
 void setup()
 {
     Serial.begin(115200);
 
-    //////////////////////////////////////////////
-    //       SD Card Stuff                      //
-    //////////////////////////////////////////////
+    delay(1000);
+    Serial.println("HERE");
+//////////////////////////////////////////////
+//      RTC SETUP                           //
+//////////////////////////////////////////////  
+    delay(1000);
+    Serial.println("HERE  NOW");
+
+    // if (rtc.lostPower()) {
+    // // reset time to compile timestamp if power lost
+    // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // }
+    // delay(1000);
+    Serial.println("HERE 1");
+//////////////////////////////////////////////
+//      WIFI SETUP                          //
+////////////////////////////////////////////// 
+    rtc.begin(); //Start RCT
+    Serial.println("HERE 2");
+    //Wifi
+    initWiFi();
+    Serial.println("HERE 3");
+    //Time Server
+    configTime(0, 0, ntpServer);
+
+    // sync RTC time with NTP server
+    syncTime();
+    prev = rtc.now();
+    now = rtc.now();
+
+    //disconnect WiFi as it's no longer needed
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+
+//////////////////////////////////////////////
+//       SD CARD SETUP                      //
+//////////////////////////////////////////////
+
+    // Mount SD card
     if (!SD.begin())
     {
         Serial.println("Card Mount Failed");
@@ -72,28 +137,42 @@ void setup()
     lineCount = scanFile(SD, "/test.txt");
     readLines(SD, startingLine, lineCount, "/test.txt");
 
-    //////////////////////////////////////////////
-    //      Buttons                             //
-    //////////////////////////////////////////////
-    scrollUp.set(UP_BUTTON, buttonEvent_up, INT_PULL_UP);
-    scrollUp.setDebounceTime(DEBOUNCE_TIME);
-    scrollUp.enableLongPress(PRESS_TIME);
+//////////////////////////////////////////////
+//     BUTTONS SETUP                        //
+//////////////////////////////////////////////
+    lefftButton.set(LEFT_BUTTON_PIN, buttonEvent_left, INT_PULL_UP);
+    lefftButton.setDebounceTime(DEBOUNCE_TIME);
+    lefftButton.enableLongPress(PRESS_TIME);
 
-    scrollDown.set(DOWN_BUTTON, buttonEvent_down, INT_PULL_UP);
-    scrollDown.setDebounceTime(DEBOUNCE_TIME);
-    scrollDown.enableLongPress(PRESS_TIME);
+    rightButton.set(RIGHT_BUTTON_PIN, buttonEvent_right, INT_PULL_UP);
+    rightButton.setDebounceTime(DEBOUNCE_TIME);
+    rightButton.enableLongPress(PRESS_TIME);
 
 } // end setup
 
 void loop()
 {
     // button polling
-    scrollUp.poll();
-    scrollDown.poll();
+    lefftButton.poll();
+    rightButton.poll();
+
+    // if (millis() - lastTime >= RTC_PERIOD) {
+    //     now = rtc.now();   // get current time from rtc module
+    //     lastTime = millis();
+
+    //     // update time string if second changes
+    //     if (now.minute() != prev.minute()) {
+    //         char buff[] = ":mm:ss AP";  // for time format display
+    //         prev = now;
+    //         String timeString = String(now.twelveHour()) + now.toString(buff); // make nice looking 12 hour time string with no leading zeros
+    //         Serial.println(timeString);
+    // }
+    // }
+
 } // end loop
 
 // 
-void buttonEvent_up (byte btnStatus){
+void buttonEvent_left (byte btnStatus){
     switch (btnStatus)
     {
     case onPress:
@@ -109,9 +188,9 @@ void buttonEvent_up (byte btnStatus){
     default:
         break;
     }
-} // end buttonEvent_up
+} // end buttonEvent_left
 
-void buttonEvent_down (byte btnStatus){
+void buttonEvent_right (byte btnStatus){
     switch (btnStatus)
     {
     case onPress:
@@ -128,4 +207,33 @@ void buttonEvent_down (byte btnStatus){
     default:
         break;
     }
-} // end buttonEvent_down
+} // end buttonEvent_right
+
+// Initialize WiFi
+void initWiFi() {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+
+    Serial.print("Connecting to WiFi ..");
+
+    while (WiFi.status() != WL_CONNECTED) {
+        Serial.print('.');
+        delay(1000);
+    }
+
+    Serial.println(WiFi.localIP());
+}
+
+// gets time from NTP Server and syncs RTC clock
+void syncTime() {
+
+  tm NTP;
+
+  // set timezone and DST for Vancouver *** MAY HAVE TO MAKE MENU FOR USER SELECTED TIMEZONE FOR FUTURE UPDATE ***
+  setenv("TZ","PST8PDT,M3.2.0,M11.1.0",1);
+  tzset();
+  getLocalTime(&NTP);
+
+  rtc.adjust(DateTime(NTP.tm_year + 1900, NTP.tm_mon + 1, NTP.tm_mday, NTP.tm_hour, NTP.tm_min, NTP.tm_sec));
+
+}

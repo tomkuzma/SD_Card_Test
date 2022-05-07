@@ -4,7 +4,6 @@
 #include <Arduino.h>
 #include "FS.h"
 #include "SD.h"
-#include "SPI.h"
 
 // returns list of filenames as a string
 String listDir(fs::FS &fs, const char *dirname, uint8_t levels);
