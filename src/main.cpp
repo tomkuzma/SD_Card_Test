@@ -10,6 +10,7 @@ Date: April 28, 2022
 
 #include "SDCard.h"
 #include "DailyStruggleButton.h"
+#include "SPI.h"
 
 #define UP_BUTTON       16
 #define DOWN_BUTTON     17
@@ -17,8 +18,8 @@ Date: April 28, 2022
 #define PRESS_TIME      1000
 #define DEBOUNCE_TIME   20  
 
-void buttonEvent_down (byte btnStatus);
 void buttonEvent_up (byte btnStatus);
+void buttonEvent_down (byte btnStatus);
 
 int lineCount;
 int startingLine = 0;
