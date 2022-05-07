@@ -7,19 +7,31 @@ Setlist Pedal Pilot
 Author: Tom Kuzma
 Date: April 28, 2022
  */
-// #include <Arduino.h>
+
+/////// SD CARD PINS /////    //////// RTC PINS //////////
+//  SD Card |  ESP32    //    //   DS3231   |   ESP32   //  
+//////////////////////////    ////////////////////////////
+//  CS      |  GPIO 5   //    //   VCC      |   5V      //               
+//  MOSI    |  GPIO 23  //    //   GND      |   GND     //                
+//  5V      |  5V       //    //   SCL      |   GPIO 21 //                
+//  SCK     |  GPIO 18  //    //   SDA      |   GPIO 22 //                 
+//  GND     |  GND      //    ////////////////////////////                   
+//  MISO    |  GPIO 19  //    
+//////////////////////////    
+
 #include "WiFi.h"
 #include "time.h"
 #include "RTClib.h"
-// #include <Wire.h>
+#include <Wire.h>
 #include "SDCard.h"
 #include "DailyStruggleButton.h"
+#include "SPI.h"
 
 #define LEFT_BUTTON_PIN     16
 #define RIGHT_BUTTON_PIN    17
 #define PRESS_TIME          1000
 #define DEBOUNCE_TIME       20  
-#define RTC_PERIOD          15000
+#define RTC_PERIOD          5000
 
 // prototypes
 void buttonEvent_left (byte btnStatus);
@@ -27,10 +39,11 @@ void buttonEvent_right (byte btnStatus);
 void initWiFi();
 void syncTime();
 
-
 // FSM states
-enum STATE {UPDATE_NTP, SERVER_CONNECT, SELECT_FILE, SCROLL_FILE};
+enum State {UPDATE_NTP, SERVER_CONNECT, SELECT_FILE, SCROLL_FILE};
+State STATE = UPDATE_NTP;
 
+// for non blocking loop actions
 unsigned long lastTime = 0;
 
 // Globals for indexing file text lines
@@ -66,22 +79,20 @@ void setup()
 //      RTC SETUP                           //
 //////////////////////////////////////////////  
     delay(1000);
-    Serial.println("HERE  NOW");
-
     // if (rtc.lostPower()) {
     // // reset time to compile timestamp if power lost
     // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     // }
     // delay(1000);
-    Serial.println("HERE 1");
+
 //////////////////////////////////////////////
 //      WIFI SETUP                          //
 ////////////////////////////////////////////// 
     rtc.begin(); //Start RCT
-    Serial.println("HERE 2");
+
     //Wifi
     initWiFi();
-    Serial.println("HERE 3");
+
     //Time Server
     configTime(0, 0, ntpServer);
 
@@ -156,18 +167,18 @@ void loop()
     lefftButton.poll();
     rightButton.poll();
 
-    // if (millis() - lastTime >= RTC_PERIOD) {
-    //     now = rtc.now();   // get current time from rtc module
-    //     lastTime = millis();
+    if (millis() - lastTime >= RTC_PERIOD) {
+        now = rtc.now();   // get current time from rtc module
+        lastTime = millis();
 
-    //     // update time string if second changes
-    //     if (now.minute() != prev.minute()) {
-    //         char buff[] = ":mm:ss AP";  // for time format display
-    //         prev = now;
-    //         String timeString = String(now.twelveHour()) + now.toString(buff); // make nice looking 12 hour time string with no leading zeros
-    //         Serial.println(timeString);
-    // }
-    // }
+        // update time string if second changes
+        if (now.minute() != prev.minute()) {
+            char buff[] = ":mm:ss AP";  // for time format display
+            prev = now;
+            String timeString = String(now.twelveHour()) + now.toString(buff); // make nice looking 12 hour time string with no leading zeros
+            Serial.println(timeString);
+        }
+    }
 
 } // end loop
 
@@ -227,13 +238,20 @@ void initWiFi() {
 // gets time from NTP Server and syncs RTC clock
 void syncTime() {
 
-  tm NTP;
+    struct tm NTP;
 
-  // set timezone and DST for Vancouver *** MAY HAVE TO MAKE MENU FOR USER SELECTED TIMEZONE FOR FUTURE UPDATE ***
-  setenv("TZ","PST8PDT,M3.2.0,M11.1.0",1);
-  tzset();
-  getLocalTime(&NTP);
+    // set timezone and DST for Vancouver *** MAY HAVE TO MAKE MENU FOR USER SELECTED TIMEZONE FOR FUTURE UPDATE ***
+    setenv("TZ","PST8PDT,M3.2.0,M11.1.0",1);
+    tzset();
+    getLocalTime(&NTP);
 
-  rtc.adjust(DateTime(NTP.tm_year + 1900, NTP.tm_mon + 1, NTP.tm_mday, NTP.tm_hour, NTP.tm_min, NTP.tm_sec));
+    rtc.adjust(DateTime(NTP.tm_year + 1900, NTP.tm_mon + 1, NTP.tm_mday, NTP.tm_hour, NTP.tm_min, NTP.tm_sec));
+    Serial.println("Time Synced to NTP Server!");
 
-}
+    // print time
+    now = rtc.now();
+    char buff[] = ":mm:ss AP";  // for time format display
+    String timeString = String(now.twelveHour()) + now.toString(buff); // make nice looking 12 hour time string with no leading zeros
+    Serial.println(timeString);
+
+} // end syncTime
