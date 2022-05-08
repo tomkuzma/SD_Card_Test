@@ -11,12 +11,12 @@ Date: April 28, 2022
 /////// SD CARD PINS /////    //////// RTC PINS //////////
 //  SD Card |  ESP32    //    //   DS3231   |   ESP32   //  
 //////////////////////////    ////////////////////////////
-//  CS      |  GPIO 5   //    //   VCC      |   5V      //               
-//  MOSI    |  GPIO 23  //    //   GND      |   GND     //                
-//  5V      |  5V       //    //   SCL      |   GPIO 21 //                
-//  SCK     |  GPIO 18  //    //   SDA      |   GPIO 22 //                 
-//  GND     |  GND      //    ////////////////////////////                   
-//  MISO    |  GPIO 19  //    
+// VCC      |   5V      //    //   VCC      |   5V      //               
+// GND      |   GND     //    //   GND      |   GND     //                
+//  SCK     |  GPIO 18  //    //   SCL      |   GPIO 21 //                
+//  MISO    |  GPIO 19  //    //   SDA      |   GPIO 22 //                 
+//  MOSI    |  GPIO 23  //    ////////////////////////////                   
+//  CS      |  GPIO 5   //    
 //////////////////////////    
 
 #include "WiFi.h"
