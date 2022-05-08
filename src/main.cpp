@@ -73,17 +73,15 @@ void setup()
 {
     Serial.begin(115200);
 
-    delay(1000);
-    Serial.println("HERE");
 //////////////////////////////////////////////
 //      RTC SETUP                           //
 //////////////////////////////////////////////  
-    delay(1000);
+    // removed this because it was throwing Guru Meditation Error for unknown reason
+    // Would reset time if battery died on RTC module 
     // if (rtc.lostPower()) {
     // // reset time to compile timestamp if power lost
     // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     // }
-    // delay(1000);
 
 //////////////////////////////////////////////
 //      WIFI SETUP                          //
