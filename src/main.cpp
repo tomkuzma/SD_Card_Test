@@ -186,7 +186,9 @@ void buttonEvent_left (byte btnStatus){
     {
     case onPress:
         if (startingLine != 0) {
-            readLines(SD, --startingLine, lineCount, "/test.txt"); // decrement starting line and get 3 lines
+            String lines = readLines(SD, --startingLine, lineCount, "/test.txt"); // decrement starting line and get 3 lines
+            Serial.println(lines);
+
         }
         break;
 
@@ -204,7 +206,8 @@ void buttonEvent_right (byte btnStatus){
     {
     case onPress:
         if (startingLine < lineCount - 2){
-            readLines(SD, ++startingLine, lineCount, "/test.txt"); // increment starting line and get 3 lines
+            String lines = readLines(SD, ++startingLine, lineCount, "/test.txt"); // increment starting line and get 3 lines
+            Serial.println(lines);
         }
         break;
 
